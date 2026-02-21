@@ -86,7 +86,6 @@ export default function ArtistVault() {
   return (
     <div className="min-h-screen bg-[#f4f4f0] text-black font-sans selection:bg-black selection:text-[#f4f4f0] pb-32 animate-in fade-in duration-1000">
       
-      {/* UPDATED NAVIGATION WITH LINKS */}
       <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black bg-white">
         <Link href="/" className="flex items-center gap-3 hover:opacity-50 transition-opacity">
           <LinkedCirclesLogo className="w-10 h-6" stroke="black" />
