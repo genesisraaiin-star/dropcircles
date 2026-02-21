@@ -1,122 +1,194 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Plus, ArrowRight, Radio } from 'lucide-react';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { ArrowRight, Lock } from 'lucide-react';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default function ArtistLogin() {
-  const router = useRouter();
+const LinkedCirclesLogo = ({ className = "w-16 h-10", stroke = "currentColor" }) => (
+  <svg viewBox="0 0 60 40" fill="none" stroke={stroke} strokeWidth="2" className={className}>
+    <circle cx="22" cy="20" r="14" />
+    <circle cx="38" cy="20" r="14" />
+  </svg>
+);
+
+export default function DropCirclesApp() {
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [formMode, setFormMode] = useState<'unlock' | 'request'>('unlock');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'denied' | 'success'>('idle');
+  const [serverError, setServerError] = useState('');
+  
+  const [key, setKey] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    try {
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("SYSTEM HALTED: Vercel is missing Supabase Environment Variables.");
-      }
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) throw error;
-      
-      if (session?.user?.email) {
-        router.push('/artist/hub');
-      } else {
-        // THE FIX: Fire and forget. Do not 'await', so it can never hang.
-        supabase.auth.signOut().catch(() => {});
-        if (typeof window !== 'undefined') {
-          localStorage.clear();
-          sessionStorage.clear();
-        }
-        setIsLoading(false); // Instantly drop the loading screen
-      }
-    } catch (err: any) {
-      console.error("Auth check failed:", err);
-      // Failsafe: if it errors out, wipe everything and show the login form anyway
-      supabase.auth.signOut().catch(() => {});
-      if (typeof window !== 'undefined') {
-        localStorage.clear();
-        sessionStorage.clear();
-      }
-      setError("SESSION CLEARED. PLEASE LOG IN AGAIN.");
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
+    setServerError('');
+    
+    // Developer Override
+    if (formMode === 'unlock' && key.trim().toUpperCase() === 'EIGHT') {
+      setIsUnlocked(true);
+      return;
+    }
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    if (formMode === 'unlock') {
+      if (!key) return;
+      setStatus('loading');
+      const enteredKey = key.trim().toUpperCase();
 
-      if (error) throw error;
-      router.push('/artist/hub');
-    } catch (err: any) {
-      setError("AUTHORIZATION DENIED: " + err.message);
-      setIsLoading(false);
+      try {
+        const { data: keyData, error: keyError } = await supabase
+          .from('access_keys')
+          .select('*')
+          .eq('code', enteredKey)
+          .single();
+
+        if (keyError || !keyData) {
+          setStatus('denied');
+          setServerError('ACCESS DENIED. INVALID KEY.');
+          return;
+        }
+
+        if (keyData.current_uses >= keyData.max_uses) {
+          setStatus('denied');
+          setServerError('CAPACITY REACHED. THE VAULT IS SEALED.');
+          return;
+        }
+
+        await supabase
+          .from('access_keys')
+          .update({ current_uses: keyData.current_uses + 1 })
+          .eq('code', enteredKey);
+
+        setIsUnlocked(true);
+
+      } catch (error) {
+        setStatus('denied');
+        setServerError('NETWORK ERROR. PLEASE RETRY.');
+      }
+    } else {
+      if (!email) return;
+      setStatus('success');
+      setEmail('');
     }
   };
 
-  if (isLoading) {
+  if (isUnlocked) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono text-[10px] uppercase tracking-[0.3em]">
-        INITIALIZING WORKSPACE...
+      <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono text-xs tracking-widest uppercase">
+        SYSTEM UNLOCKED. REDIRECTING TO TERMINAL...
+        <meta httpEquiv="refresh" content="2;url=/artist" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f4f0] text-black font-sans selection:bg-black selection:text-[#f4f4f0] flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white border-4 border-black p-8 md:p-12 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] text-center animate-in fade-in duration-500">
-        <Lock size={32} className="mx-auto mb-6 text-black" />
-        <h1 className="font-serif text-4xl font-bold tracking-tighter mb-2">DropCircles</h1>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500 mb-8">SECURE VISIONARY TERMINAL</p>
-        
-        <form onSubmit={handleLogin} className="space-y-6">
-          <input 
-            type="email" 
-            placeholder="EMAIL DESIGNATION" 
-            required
-            className="w-full bg-transparent border-b-2 border-zinc-300 py-3 font-mono text-center text-xs uppercase tracking-[0.2em] focus:outline-none focus:border-black transition-colors"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input 
-            type="password" 
-            placeholder="PASSPHRASE" 
-            required
-            className="w-full bg-transparent border-b-2 border-zinc-300 py-3 font-mono text-center text-xs uppercase tracking-[0.2em] focus:outline-none focus:border-black transition-colors"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button 
-            type="submit"
-            className="w-full bg-black text-white py-4 font-bold text-[10px] uppercase tracking-[0.3em] hover:bg-[#ff3300] transition-colors flex items-center justify-center gap-3"
-          >
-            AUTHORIZE <ArrowRight size={14} />
-          </button>
-        </form>
-
-        {error && (
-          <div className="mt-6 p-4 border-2 border-red-200 bg-red-50 text-red-600 font-mono text-[10px] uppercase tracking-widest leading-relaxed">
-            {error}
-          </div>
-        )}
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center py-24 px-6 relative overflow-x-hidden">
+      
+      <div className="absolute top-12 left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-1000">
+        <LinkedCirclesLogo className="w-16 h-10 text-white opacity-90" />
       </div>
+
+      <main className="w-full max-w-4xl mx-auto flex flex-col items-center mt-16 animate-in fade-in duration-1000 delay-300 fill-mode-both">
+        
+        <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
+          <h1 className="text-6xl md:text-[8rem] font-serif font-bold tracking-tighter mb-12">
+            INVITE ONLY
+          </h1>
+
+          <div className="flex flex-col items-center text-center space-y-10 mb-16 w-full">
+            <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-zinc-400">
+              THE ECOSYSTEM IS CURRENTLY LOCKED.
+            </p>
+
+            <div className="border-l border-zinc-700 pl-6 text-left space-y-4 py-2 mx-auto">
+              <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-zinc-300 leading-relaxed">
+                [01] A CLOSED-CIRCUIT<br/>INFRASTRUCTURE.
+              </p>
+              <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-zinc-300">
+                [02] ZERO LEAKS. ZERO ALGORITHMS.
+              </p>
+              <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-zinc-300">
+                [03] DIRECT-TO-VAULT DROPS.
+              </p>
+            </div>
+
+            <p className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-zinc-500 max-w-sm mx-auto leading-relaxed pt-6">
+              BETA ACCESS IS STRICTLY LIMITED TO 100 VISIONARIES.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-8 relative mt-4">
+            <div className="relative overflow-hidden">
+              {formMode === 'unlock' ? (
+                <input 
+                  type="text" 
+                  placeholder="ENTER ACCESS KEY" 
+                  className="w-full bg-transparent border-b border-zinc-700 py-4 font-mono text-center text-xs md:text-sm uppercase tracking-[0.3em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-600 text-white"
+                  value={key}
+                  onChange={(e) => { setKey(e.target.value); setStatus('idle'); setServerError(''); }}
+                />
+              ) : (
+                <input 
+                  type="email" 
+                  placeholder="ENTER EMAIL ADDRESS" 
+                  className="w-full bg-transparent border-b border-zinc-700 py-4 font-mono text-center text-xs md:text-sm uppercase tracking-[0.3em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-600 text-white"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setStatus('idle'); setServerError(''); }}
+                  required
+                />
+              )}
+            </div>
+            
+            <button 
+              type="submit"
+              disabled={status === 'loading' || status === 'success'}
+              className="w-full bg-black text-white border border-white py-5 font-bold text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+            >
+              {status === 'loading' ? 'PROCESSING...' : status === 'success' ? 'REQUEST RECEIVED' : formMode === 'unlock' ? 'UNLOCK' : 'SUBMIT REQUEST'}
+              {!status && <ArrowRight size={16} />}
+            </button>
+
+            <div className="h-4 flex flex-col items-center justify-start text-center">
+              {status === 'denied' && (
+                <p className="font-mono text-[10px] text-red-600 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">{serverError}</p>
+              )}
+              {status === 'success' && formMode === 'request' && (
+                <p className="font-mono text-[10px] text-[#4ade80] uppercase tracking-widest animate-pulse">POSITION SECURED. WE WILL BE IN TOUCH.</p>
+              )}
+            </div>
+          </form>
+
+          <button 
+            onClick={() => { setFormMode(formMode === 'unlock' ? 'request' : 'unlock'); setStatus('idle'); setServerError(''); setKey(''); setEmail(''); }}
+            className="mt-16 font-mono text-[10px] text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em] border-b border-zinc-700 hover:border-white pb-1"
+          >
+            {formMode === 'unlock' ? "REQUEST A BETA KEY" : "HAVE A KEY? UNLOCK"}
+          </button>
+        </div>
+
+        <div className="text-center mt-32 space-y-8 opacity-40 hover:opacity-100 transition-opacity duration-700 pb-12">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight">
+            <span className="text-zinc-600 block">No platform.</span>
+            <span className="text-zinc-600 block">No permission.</span>
+            <span className="text-zinc-600 block">No performance.</span>
+          </h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight">
+            <span className="text-zinc-400 block">You create.</span>
+            <span className="text-zinc-400 block">You invite.</span>
+            <span className="text-zinc-400 block">You collect.</span>
+          </h2>
+        </div>
+
+      </main>
+      
+      {/* Hidden backdoor link for you */}
+      <Link href="/artist" className="absolute bottom-4 right-4 w-8 h-8 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+        <Lock size={12} className="text-zinc-600" />
+      </Link>
     </div>
   );
 }
