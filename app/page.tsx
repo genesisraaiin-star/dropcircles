@@ -233,9 +233,6 @@ export default function AuraApp() {
     );
   }
 
-  // ==========================================
-  // VIEW 2: THE HYPE GATE
-  // ==========================================
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center py-24 px-6 relative overflow-y-auto">
       
@@ -245,7 +242,6 @@ export default function AuraApp() {
 
       <main className="w-full max-w-4xl mx-auto flex flex-col items-center mt-12 animate-in fade-in duration-1000 delay-300 fill-mode-both">
         
-        {/* HERO SECTION */}
         <div className="text-center mb-40 space-y-16">
           <h2 className="text-5xl md:text-7xl font-bold tracking-tighter leading-[1.05]">
             <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No platform.</span>
@@ -259,7 +255,6 @@ export default function AuraApp() {
           </h2>
         </div>
 
-        {/* INVITE ONLY SECTION */}
         <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[8rem] font-serif font-bold tracking-tighter mb-12">
             INVITE ONLY
@@ -320,4 +315,22 @@ export default function AuraApp() {
 
             <div className="h-4 flex flex-col items-center justify-start text-center">
               {status === 'denied' && (
-                <p className="font-mono text-[10px] text-red-600 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">{serverError}</p
+                <p className="font-mono text-[10px] text-red-600 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">{serverError}</p>
+              )}
+              {status === 'success' && formMode === 'request' && (
+                <p className="font-mono text-[10px] text-[#4ade80] uppercase tracking-widest animate-pulse">POSITION SECURED. WE WILL BE IN TOUCH.</p>
+              )}
+            </div>
+          </form>
+
+          <button 
+            onClick={() => { setFormMode(formMode === 'unlock' ? 'request' : 'unlock'); setStatus('idle'); setServerError(''); setKey(''); setEmail(''); }}
+            className="mt-16 font-mono text-[10px] text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em] border-b border-zinc-700 hover:border-white pb-1"
+          >
+            {formMode === 'unlock' ? "REQUEST A BETA KEY" : "HAVE A KEY? UNLOCK"}
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+}
