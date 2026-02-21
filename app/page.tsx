@@ -223,8 +223,8 @@ export default function AuraApp() {
           </div>
         </form>
 
-        <button className="mt-16 font-mono text-[10px] text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.3em] pb-1">
-          Request Beta Access
+        <button className="mt-16 font-mono text-[10px] text-zinc-400 hover:text-white transition-colors uppercase tracking-[0.2em] pb-1 flex items-center gap-2 group">
+          <span className="text-zinc-600 group-hover:text-zinc-400 transition-colors">BETA VERSION:</span> REQUEST EARLY ACCESS TO DROPCIRCLES
         </button>
       </main>
 
