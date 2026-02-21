@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Play, Pause, Music, Video, Globe, ArrowRight, ShieldAlert } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -15,12 +15,91 @@ const LinkedCirclesLogo = ({ className = "w-16 h-10", stroke = "currentColor" })
   </svg>
 );
 
+// --- THE CUSTOM AURA AUDIO PLAYER ---
+const CustomAudioPlayer = ({ src }: { src: string }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+      setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const manualChange = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = (audioRef.current.duration / 100) * manualChange;
+      setProgress(manualChange);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  return (
+    <div className="w-full md:w-80 flex flex-col gap-2 bg-zinc-100 p-4 border-2 border-black">
+      <audio
+        ref={audioRef}
+        src={src}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+      />
+      <div className="flex items-center gap-4">
+        <button onClick={togglePlay} className="w-12 h-12 bg-black text-white flex items-center justify-center hover:bg-[#ff3300] transition-colors flex-shrink-0">
+          {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+        </button>
+        <div className="flex-1 flex flex-col gap-2">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={progress || 0}
+            onChange={handleSeek}
+            className="w-full h-1 bg-zinc-300 appearance-none cursor-pointer accent-black"
+          />
+          <div className="flex justify-between font-mono text-[9px] text-zinc-500 font-bold tracking-widest">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ------------------------------------
+
 export default function FanReceiver({ params }: { params: { circleId: string } }) {
   const [circle, setCircle] = useState<any>(null);
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Squeeze Engine States
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [email, setEmail] = useState('');
   const [joinStatus, setJoinStatus] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -30,7 +109,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     fetchDropData();
   }, [params.circleId]);
 
-  // 1. Fetch the Circle to see if it's Live and has Capacity
   const fetchDropData = async () => {
     setIsLoading(true);
     try {
@@ -50,7 +128,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     }
   };
 
-  // 2. The Squeeze Action: Capture Email and Unlock
   const claimSpot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !circle) return;
@@ -59,17 +136,14 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     setErrorMessage('');
 
     try {
-      // Step A: Attempt to log the fan's email into the roster
       const { error: insertError } = await supabase
         .from('fan_roster')
         .insert([{ circle_id: circle.id, email: email.toLowerCase().trim() }]);
 
-      // Error '23505' means this email already claimed a spot. We just let them back in!
       if (insertError && insertError.code !== '23505') {
         throw insertError;
       }
 
-      // Step B: If it was a BRAND NEW email, tick the counter up by 1
       if (!insertError) {
         await supabase
           .from('circles')
@@ -77,7 +151,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           .eq('id', circle.id);
       }
 
-      // Step C: Unlock the vault and fetch the music!
       setIsUnlocked(true);
       fetchArtifacts();
 
@@ -87,7 +160,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     }
   };
 
-  // 3. Fetch the encrypted audio once they unlock the gate
   const fetchArtifacts = async () => {
     const { data: artifactData } = await supabase
       .from('artifacts')
@@ -99,7 +171,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       const artifactsWithUrls = await Promise.all(artifactData.map(async (art) => {
         const { data } = await supabase.storage
           .from('vault')
-          .createSignedUrl(art.file_path, 3600); // 1-Hour Self-Destruct
+          .createSignedUrl(art.file_path, 3600); 
         return { ...art, stream_url: data?.signedUrl };
       }));
       setArtifacts(artifactsWithUrls);
@@ -114,9 +186,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     );
   }
 
-  // ==========================================
-  // STATE 1: VAULT IS OFFLINE
-  // ==========================================
   if (!circle || !circle.is_live) {
     return (
       <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
@@ -130,22 +199,16 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     );
   }
 
-  // ==========================================
-  // STATE 2: THE SQUEEZE (Live, but locked)
-  // ==========================================
   if (!isUnlocked) {
     const isFull = circle.claimed_spots >= circle.max_capacity;
     const spotsRemaining = circle.max_capacity - circle.claimed_spots;
 
     return (
       <div className="min-h-screen bg-[#f4f4f0] text-black font-sans selection:bg-black selection:text-[#f4f4f0] flex flex-col items-center justify-center p-6 animate-in fade-in duration-1000">
-        
         <div className="absolute top-12 left-1/2 -translate-x-1/2">
           <LinkedCirclesLogo className="w-16 h-10 text-black" />
         </div>
-
         <div className="w-full max-w-lg bg-white border-4 border-black p-8 md:p-12 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] text-center relative overflow-hidden">
-          
           <div className="mb-8">
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-4">EXCLUSIVE ARTIFACT DROP</p>
             <h1 className="font-serif text-5xl font-bold tracking-tighter mb-2">{circle.title}</h1>
@@ -190,18 +253,13 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
               </p>
             </div>
           )}
-
         </div>
       </div>
     );
   }
 
-  // ==========================================
-  // STATE 3: THE VAULT IS UNLOCKED (Play Music)
-  // ==========================================
   return (
     <div className="min-h-screen bg-[#f4f4f0] text-black font-sans selection:bg-black selection:text-[#f4f4f0] pb-32 animate-in fade-in duration-1000">
-      
       <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black bg-white">
         <div className="flex items-center gap-3">
           <LinkedCirclesLogo className="w-10 h-6" stroke="black" />
@@ -213,7 +271,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       </nav>
 
       <main className="max-w-4xl mx-auto pt-24 px-6">
-        
         <div className="mb-20 text-center border-b-2 border-black pb-16">
           <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-6">VAULT UNLOCKED FOR: {email.toUpperCase()}</p>
           <h1 className="font-serif text-6xl md:text-8xl font-bold tracking-tighter mb-6">{circle.title}</h1>
@@ -247,15 +304,11 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
                       src={artifact.stream_url} 
                       controls 
                       controlsList="nodownload"
-                      className="w-full md:w-64 border-2 border-black bg-black"
+                      className="w-full md:w-72 border-2 border-black bg-black"
                     />
                   ) : (
-                    <audio 
-                      src={artifact.stream_url} 
-                      controls 
-                      controlsList="nodownload"
-                      className="w-full md:w-64 outline-none"
-                    />
+                    // WE NOW USE THE BESPOKE AURA AUDIO PLAYER
+                    <CustomAudioPlayer src={artifact.stream_url} />
                   )}
                 </div>
 
