@@ -15,7 +15,7 @@ const LinkedCirclesLogo = ({ className = "w-16 h-10", stroke = "currentColor" })
   </svg>
 );
 
-// --- THE CUSTOM AURA AUDIO PLAYER ---
+// --- THE CUSTOM DROPCIRCLES AUDIO PLAYER ---
 const CustomAudioPlayer = ({ src }: { src: string }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -263,7 +263,8 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black bg-white">
         <div className="flex items-center gap-3">
           <LinkedCirclesLogo className="w-10 h-6" stroke="black" />
-          <span className="text-2xl font-serif tracking-tighter mt-1">AURA</span>
+          {/* THE BRAND UPDATE */}
+          <span className="text-2xl font-serif tracking-tighter mt-1">DropCircles</span>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 bg-[#4ade80]/20 text-black border-2 border-[#4ade80] font-mono text-[10px] font-bold uppercase tracking-widest animate-pulse">
           <Globe size={12} /> ENCRYPTED CONNECTION
@@ -307,7 +308,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
                       className="w-full md:w-72 border-2 border-black bg-black"
                     />
                   ) : (
-                    // WE NOW USE THE BESPOKE AURA AUDIO PLAYER
                     <CustomAudioPlayer src={artifact.stream_url} />
                   )}
                 </div>
