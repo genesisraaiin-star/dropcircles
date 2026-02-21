@@ -77,7 +77,6 @@ export default function AuraApp() {
     e.preventDefault();
     setServerError('');
     
-    // Master Access for Artist
     if (formMode === 'unlock' && key.trim().toUpperCase() === 'EIGHT') {
       setIsUnlocked(true);
       return;
@@ -147,9 +146,6 @@ export default function AuraApp() {
     }
   };
 
-  // ==========================================
-  // VIEW 1: THE DASHBOARD (Unlocked State)
-  // ==========================================
   if (isUnlocked) {
     return (
       <div className="min-h-screen bg-[#f4f4f0] text-black font-sans selection:bg-black selection:text-[#f4f4f0] pb-32 animate-in fade-in duration-1000">
@@ -229,4 +225,85 @@ export default function AuraApp() {
 
         <Link 
           href="/vault" 
-          className="fixed bottom-8 right-8 w-16 h-16 bg-[#ff3300]
+          className="fixed bottom-8 right-8 w-16 h-16 bg-[#ff3300] text-white hover:bg-black hover:scale-105 transition-all flex items-center justify-center rounded-none z-50 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black"
+        >
+          <Plus size={32} strokeWidth={2} />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center justify-center p-6 md:p-12 relative overflow-hidden">
+      <div className="absolute top-12 left-1/2 -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-1000">
+        <LinkedCirclesLogo className="w-16 h-10 text-white opacity-90" />
+      </div>
+
+      <main className="w-full max-w-3xl mx-auto flex flex-col items-center mt-8 animate-in fade-in duration-1000 delay-300 fill-mode-both">
+        <div className="text-center mb-24 space-y-16">
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter leading-[1.1]">
+            <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No platform.</span>
+            <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No permission.</span>
+            <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No performance.</span>
+          </h2>
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter leading-[1.1]">
+            <span className="text-white block drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">You create.</span>
+            <span className="text-white block drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">You invite.</span>
+            <span className="text-white block drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">You collect.</span>
+          </h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-6 relative">
+          <div className="relative overflow-hidden">
+            {formMode === 'unlock' ? (
+              <input 
+                type="text" 
+                placeholder="ENTER ACCESS KEY" 
+                className="w-full bg-transparent border-b-2 border-zinc-800 py-4 font-mono text-center text-sm uppercase tracking-[0.3em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-700 text-white animate-in fade-in slide-in-from-bottom-2 duration-300"
+                value={key}
+                onChange={(e) => { setKey(e.target.value); setStatus('idle'); setServerError(''); }}
+              />
+            ) : (
+              <input 
+                type="email" 
+                placeholder="ENTER EMAIL ADDRESS" 
+                className="w-full bg-transparent border-b-2 border-zinc-800 py-4 font-mono text-center text-sm uppercase tracking-[0.3em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-700 text-white animate-in fade-in slide-in-from-bottom-2 duration-300"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setStatus('idle'); setServerError(''); }}
+                required
+              />
+            )}
+          </div>
+          
+          <button 
+            type="submit"
+            disabled={status === 'loading' || status === 'success'}
+            className="w-full bg-white text-black py-4 font-bold text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            {status === 'loading' ? 'PROCESSING...' : status === 'success' ? 'REQUEST RECEIVED' : formMode === 'unlock' ? 'UNLOCK' : 'SUBMIT REQUEST'}
+          </button>
+
+          <div className="h-10 flex flex-col items-center justify-start text-center">
+            {status === 'denied' && (
+              <p className="font-mono text-[10px] text-red-600 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">{serverError}</p>
+            )}
+            {status === 'success' && formMode === 'request' && (
+              <p className="font-mono text-[10px] text-[#4ade80] uppercase tracking-widest animate-pulse">POSITION SECURED. WE WILL BE IN TOUCH.</p>
+            )}
+          </div>
+        </form>
+
+        <button 
+          onClick={() => { setFormMode(formMode === 'unlock' ? 'request' : 'unlock'); setStatus('idle'); setServerError(''); setKey(''); setEmail(''); }}
+          className="mt-12 font-mono text-[10px] text-zinc-400 hover:text-white transition-colors uppercase tracking-[0.2em] pb-1 flex items-center gap-2 group"
+        >
+          {formMode === 'unlock' ? (
+            <><span className="text-zinc-600 group-hover:text-zinc-400 transition-colors">BETA VERSION:</span> REQUEST EARLY ACCESS</>
+          ) : (
+            <><span className="text-zinc-600 group-hover:text-zinc-400 transition-colors">HAVE A KEY?</span> UNLOCK DROPCIRCLES</>
+          )}
+        </button>
+      </main>
+    </div>
+  );
+}
