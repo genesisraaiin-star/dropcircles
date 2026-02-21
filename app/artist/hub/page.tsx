@@ -35,46 +35,63 @@ export default function VisionaryHub() {
     checkUserAndFetchCircles();
   }, []);
 
+  // --- THE BULLETPROOF FIX IS HERE ---
   const checkUserAndFetchCircles = async () => {
     setIsLoading(true);
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error || !session) {
-      router.push('/artist');
-      return;
-    }
-    setUser(session.user);
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) throw sessionError;
+      
+      if (!session) {
+        router.push('/artist');
+        return;
+      }
+      setUser(session.user);
 
-    const { data: circleData } = await supabase
-      .from('circles')
-      .select('*')
-      .eq('artist_id', session.user.id)
-      .order('created_at', { ascending: false });
+      const { data: circleData, error: circleError } = await supabase
+        .from('circles')
+        .select('*')
+        .eq('artist_id', session.user.id)
+        .order('created_at', { ascending: false });
 
-    setCircles(circleData || []);
-    if (circleData && circleData.length > 0) {
-      handleSelectCircle(circleData[0]);
+      if (circleError) throw circleError;
+
+      setCircles(circleData || []);
+      if (circleData && circleData.length > 0) {
+        handleSelectCircle(circleData[0]);
+      }
+    } catch (err: any) {
+      console.error("Hub Initialization Error:", err);
+      alert("WORKSPACE ERROR: " + err.message + "\nCheck your Supabase connection.");
+    } finally {
+      // THIS WILL ALWAYS RUN, KILLING THE INFINITE LOAD
+      setIsLoading(false); 
     }
-    setIsLoading(false);
   };
+  // -----------------------------------
 
   const handleSelectCircle = async (circle: any) => {
     setActiveCircle(circle);
     setActiveTab('artifacts');
     
-    const { data: artifactData } = await supabase
-      .from('artifacts')
-      .select('*')
-      .eq('circle_id', circle.id)
-      .order('created_at', { ascending: true });
-    setArtifacts(artifactData || []);
+    try {
+      const { data: artifactData } = await supabase
+        .from('artifacts')
+        .select('*')
+        .eq('circle_id', circle.id)
+        .order('created_at', { ascending: true });
+      setArtifacts(artifactData || []);
 
-    const { data: fanData } = await supabase
-      .from('fan_roster')
-      .select('*')
-      .eq('circle_id', circle.id)
-      .order('created_at', { ascending: false });
-    setFans(fanData || []);
+      const { data: fanData } = await supabase
+        .from('fan_roster')
+        .select('*')
+        .eq('circle_id', circle.id)
+        .order('created_at', { ascending: false });
+      setFans(fanData || []);
+    } catch (error) {
+      console.error("Error fetching circle data:", error);
+    }
   };
 
   const handleLogout = async () => {
@@ -92,17 +109,23 @@ export default function VisionaryHub() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('circles')
-      .insert([{ title: newCircleTitle, max_capacity: capacity, is_live: false, artist_id: user.id }])
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('circles')
+        .insert([{ title: newCircleTitle, max_capacity: capacity, is_live: false, artist_id: user.id }])
+        .select()
+        .single();
 
-    if (!error && data) {
-      setCircles([data, ...circles]);
-      setNewCircleTitle('');
-      setNewCircleCapacity('100');
-      handleSelectCircle(data);
+      if (error) throw error;
+
+      if (data) {
+        setCircles([data, ...circles]);
+        setNewCircleTitle('');
+        setNewCircleCapacity('100');
+        handleSelectCircle(data);
+      }
+    } catch (error: any) {
+      alert("FAILED TO FORGE CIRCLE: " + error.message);
     }
   };
 
@@ -167,8 +190,8 @@ export default function VisionaryHub() {
       if (dbError) throw dbError;
       setArtifacts([...artifacts, data]);
 
-    } catch (err) {
-      alert("UPLOAD FAILED. PLEASE TRY AGAIN.");
+    } catch (err: any) {
+      alert("UPLOAD FAILED: " + err.message);
     } finally {
       setIsUploading(false);
     }
@@ -206,7 +229,7 @@ export default function VisionaryHub() {
       <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black bg-white">
         <div className="flex items-center gap-3">
           <LinkedCirclesLogo className="w-10 h-6" stroke="black" />
-          <span className="text-2xl font-serif tracking-tighter mt-1">AURA</span>
+          <span className="text-2xl font-serif tracking-tighter mt-1">DropCircles</span>
         </div>
         <div className="flex gap-6 items-center">
           <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500 hidden md:block">
@@ -269,7 +292,6 @@ export default function VisionaryHub() {
                     onChange={(e) => setNewCircleCapacity(e.target.value)}
                   />
                   
-                  {/* THE MONETIZATION PLACEHOLDER INPUT */}
                   <div className="relative w-16 flex-shrink-0 group cursor-not-allowed">
                     <input 
                       type="text" 
@@ -327,7 +349,6 @@ export default function VisionaryHub() {
                 </div>
               </div>
 
-              {/* TABS: ARTIFACTS | GUESTLIST | CAPITAL */}
               <div className="flex gap-8 border-b-2 border-zinc-200 mb-8 mt-4 overflow-x-auto">
                 <button 
                   onClick={() => setActiveTab('artifacts')} 
@@ -425,7 +446,6 @@ export default function VisionaryHub() {
                 </div>
               )}
 
-              {/* TAB CONTENT: CAPITAL (THE PLACEHOLDER) */}
               {activeTab === 'capital' && (
                 <div className="flex-1 space-y-4 animate-in fade-in duration-300">
                   <div className="flex items-center justify-between mb-6">
