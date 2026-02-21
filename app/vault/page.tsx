@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Upload, Clock, ArrowRight, Lock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase using the keys you saved in Vercel
+// Connect to the Supabase Database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -33,24 +33,48 @@ export default function ArtistVault() {
     setIsUploading(true);
     
     try {
-      // 1. Create a unique filename so tracks don't overwrite each other
+      // 1. UPLOAD THE FILE TO STORAGE
       const fileExt = audioFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `artifacts/${fileName}`;
 
-      // 2. Fire the file directly into the Supabase 'vault' bucket
-      const { data, error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('vault')
-        .upload(`artifacts/${fileName}`, audioFile);
+        .upload(filePath, audioFile);
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
-      // Reset the form on success
+      // 2. CREATE THE DROPCIRCLE EVENT IN THE DATABASE
+      const { data: circleData, error: circleError } = await supabase
+        .from('circles')
+        .insert([{ 
+          title: title, 
+          go_live_at: new Date(releaseDate).toISOString() 
+        }])
+        .select()
+        .single();
+
+      if (circleError) throw circleError;
+
+      // 3. LINK THE AUDIO FILE TO THE EVENT
+      const { error: artifactError } = await supabase
+        .from('artifacts')
+        .insert([{
+          circle_id: circleData.id,
+          title: title,
+          file_path: filePath,
+          file_type: audioFile.type || 'audio/mpeg'
+        }]);
+
+      if (artifactError) throw artifactError;
+
+      // SUCCESS! RESET THE FORM.
       setAudioFile(null);
       setVisualFile(null);
       setTitle('');
       setReleaseDate('');
       
-      alert("ARTIFACT SECURED IN THE VAULT.");
+      alert("ARTIFACT SECURED. THE COUNTDOWN HAS BEGUN.");
       
     } catch (error: any) {
       console.error("Upload Failed:", error);
