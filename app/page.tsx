@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Plus, ArrowRight, Radio, Lock } from 'lucide-react';
+import { Plus, ArrowRight, Radio, Lock as LockIcon } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 
@@ -187,7 +187,7 @@ export default function DropCirclesApp() {
       
       {/* Hidden backdoor link for you */}
       <Link href="/artist" className="absolute bottom-4 right-4 w-8 h-8 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-        <Lock size={12} className="text-zinc-600" />
+        <LockIcon size={12} className="text-zinc-600" />
       </Link>
     </div>
   );
