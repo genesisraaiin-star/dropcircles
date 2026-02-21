@@ -2,8 +2,13 @@
 import React, { useState } from 'react';
 import { Plus, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
 
-// The geometric Infinity/Connection Logo
+// Connect to the Supabase Database
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const LinkedCirclesLogo = ({ className = "w-16 h-10", stroke = "currentColor" }) => (
   <svg viewBox="0 0 60 40" fill="none" stroke={stroke} strokeWidth="2" className={className}>
     <circle cx="22" cy="20" r="14" />
@@ -25,36 +30,64 @@ export default function AuraApp() {
     e.preventDefault();
     setServerError('');
     
+    // ==========================================
+    // THE HYPE GATE LOGIC (TIED TO SUPABASE)
+    // ==========================================
     if (formMode === 'unlock') {
       if (!key) return;
       setStatus('loading');
-      setTimeout(() => {
-        const enteredKey = key.trim().toUpperCase();
-        if (enteredKey === 'EIGHT' || enteredKey === 'NOCHECK') {
-          setIsUnlocked(true);
-        } else {
+      
+      const enteredKey = key.trim().toUpperCase();
+
+      try {
+        // 1. Ask Supabase if the key exists
+        const { data: keyData, error: keyError } = await supabase
+          .from('access_keys')
+          .select('*')
+          .eq('code', enteredKey)
+          .single();
+
+        // If it doesn't exist, reject them immediately
+        if (keyError || !keyData) {
           setStatus('denied');
-          setServerError('ACCESS DENIED.');
+          setServerError('ACCESS DENIED. INVALID KEY.');
+          return;
         }
-      }, 1200);
+
+        // 2. Check if the DropCircle is full
+        if (keyData.current_uses >= keyData.max_uses) {
+          setStatus('denied');
+          setServerError('CAPACITY REACHED. THE VAULT IS SEALED.');
+          return;
+        }
+
+        // 3. Add +1 to the counter and let them in
+        await supabase
+          .from('access_keys')
+          .update({ current_uses: keyData.current_uses + 1 })
+          .eq('code', enteredKey);
+
+        setIsUnlocked(true);
+
+      } catch (error) {
+        setStatus('denied');
+        setServerError('NETWORK ERROR. PLEASE RETRY.');
+      }
+
     } else {
+      // Email Waitlist Logic
       if (!email) return;
       setStatus('loading');
       
       try {
-        // NATIVE FETCH BYPASS - ZERO PACKAGES REQUIRED
         const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             service_id: 'service_xowlhf8',
             template_id: 'template_v1eu7an',
             user_id: '8AZcPyaE3LqYBe1o6',
-            template_params: {
-              fan_email: email,
-            }
+            template_params: { fan_email: email }
           }),
         });
         
@@ -62,13 +95,10 @@ export default function AuraApp() {
           setStatus('success');
           setEmail('');
         } else {
-          const errorText = await response.text();
           setStatus('denied');
           setServerError('API REJECTED. PLEASE RETRY.');
-          console.error("EmailJS Failed:", errorText);
         }
       } catch (error: any) {
-        console.error("Network Failed:", error);
         setStatus('denied');
         setServerError('NETWORK ERROR. PLEASE RETRY.');
       }
@@ -197,7 +227,6 @@ export default function AuraApp() {
           )}
         </main>
 
-        {/* THIS IS THE PORTAL BUTTON TO THE VAULT */}
         <Link 
           href="/vault" 
           className="fixed bottom-8 right-8 w-16 h-16 bg-[#ff3300] text-white hover:bg-black hover:scale-105 transition-all flex items-center justify-center rounded-none z-50 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black"
