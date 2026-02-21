@@ -16,7 +16,6 @@ export default function AuraApp() {
     
     setTimeout(() => {
       const enteredKey = key.trim().toUpperCase();
-      // Unlock if they use the brand acronym or track name
       if (enteredKey === 'EIGHT' || enteredKey === 'NOCHECK') {
         setIsUnlocked(true);
       } else {
@@ -158,50 +157,34 @@ export default function AuraApp() {
   }
 
   // ==========================================
-  // VIEW 2: THE HYPE GATE (Locked State)
+  // VIEW 2: THE HYPE GATE (Locked State - Apple/Monolithic Vibe)
   // ==========================================
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center justify-center p-6 md:p-12 relative">
       
-      <main className="w-full max-w-2xl mx-auto flex flex-col items-center mt-[-5vh] animate-in fade-in duration-1000">
+      <main className="w-full max-w-3xl mx-auto flex flex-col items-center mt-[-5vh] animate-in fade-in duration-1000">
         
-        {/* Title */}
-        <h1 className="font-serif text-6xl md:text-8xl font-bold uppercase tracking-tighter mb-16 text-center w-full">
-          INVITE ONLY
-        </h1>
-        
-        {/* Mysterious Teaser Block */}
-        <div className="font-mono text-[10px] md:text-[11px] uppercase tracking-[0.2em] mb-12 flex flex-col items-center w-full">
-          <p className="text-zinc-400 mb-6">THE ECOSYSTEM IS CURRENTLY LOCKED.</p>
+        {/* The Manifesto - Big, Bold, Unified */}
+        <div className="text-center mb-20 space-y-12">
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter leading-[1.1]">
+            <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No platform.</span>
+            <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No permission.</span>
+            <span className="text-zinc-600 block hover:text-zinc-400 transition-colors duration-500">No performance.</span>
+          </h2>
           
-          <div className="border-l border-zinc-600 pl-4 text-left text-zinc-300 space-y-3 py-2">
-            <p>[01] A CLOSED-CIRCUIT<br/>INFRASTRUCTURE.</p>
-            <p>[02] ZERO LEAKS. ZERO ALGORITHMS.</p>
-            <p>[03] DIRECT-TO-VAULT DROPS.</p>
-          </div>
-          
-          <p className="text-zinc-400 mt-8 max-w-xs text-center leading-relaxed">
-            BETA ACCESS IS STRICTLY LIMITED TO 100 VISIONARIES.
-          </p>
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter leading-[1.1]">
+            <span className="text-white block drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">You create.</span>
+            <span className="text-white block drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">You invite.</span>
+            <span className="text-white block drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">You collect.</span>
+          </h2>
         </div>
 
-        {/* The Poetic Gatekeeper */}
-        <div className="mb-16 flex flex-col items-center text-center">
-          <p className="font-serif italic text-lg md:text-xl text-zinc-500 max-w-sm leading-relaxed">
-            "The Soul selects her own Society —<br />
-            Then — shuts the Door."
-          </p>
-          <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600 mt-4">
-            — Emily Dickinson
-          </p>
-        </div>
-
-        {/* Terminal Input */}
+        {/* Terminal Input - Tightly Controlled */}
         <form onSubmit={handleAccess} className="w-full max-w-sm flex flex-col gap-6">
           <input 
             type="text" 
             placeholder="ENTER ACCESS KEY" 
-            className="w-full bg-transparent border-b border-zinc-800 py-4 font-mono text-center text-xs uppercase tracking-[0.2em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-700 text-white"
+            className="w-full bg-transparent border-b-2 border-zinc-800 py-4 font-mono text-center text-sm uppercase tracking-[0.3em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-700 text-white"
             value={key}
             onChange={(e) => {
               setKey(e.target.value);
@@ -212,13 +195,12 @@ export default function AuraApp() {
           <button 
             type="submit"
             disabled={status === 'loading'}
-            className="w-full border border-white bg-black text-white py-4 font-mono font-bold text-[11px] uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full bg-white text-black py-4 font-bold text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {status === 'loading' ? 'VERIFYING...' : 'UNLOCK'}
-            {status !== 'loading' && <ArrowRight size={14} strokeWidth={2} />}
           </button>
 
-          <div className="h-4 mt-1 flex justify-center">
+          <div className="h-4 flex justify-center">
             {status === 'denied' && (
               <p className="font-mono text-[10px] text-red-600 uppercase tracking-widest animate-pulse">
                 ACCESS DENIED.
@@ -227,8 +209,8 @@ export default function AuraApp() {
           </div>
         </form>
 
-        <button className="mt-16 font-mono text-[9px] text-zinc-600 hover:text-white border-b border-zinc-800 hover:border-white transition-colors uppercase tracking-[0.3em] pb-1">
-          REQUEST A BETA KEY
+        <button className="mt-16 font-mono text-[10px] text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.3em] pb-1">
+          Request Beta Access
         </button>
       </main>
 
