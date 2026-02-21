@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from 'react';
 import { Plus, ArrowRight } from 'lucide-react';
-import emailjs from '@emailjs/browser';
 
 // The geometric Infinity/Connection Logo
 const LinkedCirclesLogo = ({ className = "w-16 h-10", stroke = "currentColor" }) => (
@@ -42,27 +41,35 @@ export default function AuraApp() {
       setStatus('loading');
       
       try {
-        // PING EMAILJS DIRECTLY FROM THE BROWSER
-        const result = await emailjs.send(
-          'service_xowlhf8',          // YOUR LIVE SERVICE ID
-          'template_v1eu7an',         // YOUR LIVE TEMPLATE ID
-          {
-            fan_email: email,
+        // NATIVE FETCH BYPASS - ZERO PACKAGES REQUIRED
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          '8AZcPyaE3LqYBe1o6'         // YOUR LIVE PUBLIC KEY
-        );
+          body: JSON.stringify({
+            service_id: 'service_xowlhf8',
+            template_id: 'template_v1eu7an',
+            user_id: '8AZcPyaE3LqYBe1o6',
+            template_params: {
+              fan_email: email,
+            }
+          }),
+        });
         
-        if (result.status === 200) {
+        if (response.ok) {
           setStatus('success');
           setEmail('');
         } else {
+          const errorText = await response.text();
           setStatus('denied');
           setServerError('API REJECTED. PLEASE RETRY.');
+          console.error("EmailJS Failed:", errorText);
         }
       } catch (error: any) {
-        console.error("EmailJS Failed:", error);
+        console.error("Network Failed:", error);
         setStatus('denied');
-        setServerError(error.text || 'NETWORK ERROR. PLEASE RETRY.');
+        setServerError('NETWORK ERROR. PLEASE RETRY.');
       }
     }
   };
