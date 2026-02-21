@@ -3,12 +3,9 @@ import React, { useState } from 'react';
 import { Plus, ArrowRight } from 'lucide-react';
 
 export default function AuraApp() {
-  // State for the Gate
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [key, setKey] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'denied'>('idle');
-
-  // State for the Dashboard
   const [activeTab, setActiveTab] = useState('drop');
 
   const handleAccess = (e: React.FormEvent) => {
@@ -17,7 +14,6 @@ export default function AuraApp() {
     
     setStatus('loading');
     
-    // Check the secret keys after a short "verification" delay for dramatic effect
     setTimeout(() => {
       const enteredKey = key.trim().toUpperCase();
       if (enteredKey === 'EIGHT' || enteredKey === 'NOCHECK') {
@@ -34,12 +30,11 @@ export default function AuraApp() {
   if (isUnlocked) {
     return (
       <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white pb-32 animate-in fade-in duration-1000">
-        {/* Top Navigation - Utilitarian */}
         <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-serif tracking-tighter">∞ AURA</span>
           </div>
-          <div className="flex gap-6 text-sm font-bold uppercase tracking-widest">
+          <div className="flex gap-6 text-sm font-bold uppercase tracking-widest hidden md:flex">
             <button onClick={() => setActiveTab('drop')} className={`hover:underline underline-offset-4 decoration-2 ${activeTab === 'drop' && 'underline'}`}>The Drop</button>
             <button onClick={() => setActiveTab('guestlist')} className={`hover:underline underline-offset-4 decoration-2 ${activeTab === 'guestlist' && 'underline'}`}>Circles</button>
             <button onClick={() => setActiveTab('vault')} className={`hover:underline underline-offset-4 decoration-2 ${activeTab === 'vault' && 'underline'}`}>Vault</button>
@@ -59,14 +54,12 @@ export default function AuraApp() {
             </div>
           </div>
 
-          {/* --- TAB: THE DROP --- */}
           {activeTab === 'drop' && (
             <div className="animate-in fade-in duration-300">
               <h2 className="font-serif text-4xl font-bold mb-6">Artist Dashboard</h2>
               <p className="font-serif text-xl mb-12">Upload &rarr; Choose Circle &rarr; Publish &rarr; Share.</p>
               
               <div className="space-y-0 border-t-2 border-black">
-                {/* Track 1 */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b-2 border-black hover:bg-zinc-100 transition-colors cursor-pointer">
                   <div className="mb-4 sm:mb-0">
                     <h3 className="font-bold text-xl uppercase tracking-tight text-red-600">No Check (Rough Draft)</h3>
@@ -76,7 +69,6 @@ export default function AuraApp() {
                     <span className="px-4 py-2 text-xs font-bold uppercase border border-black bg-black text-white">Boardroom</span>
                   </div>
                 </div>
-                {/* Track 2 */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b-2 border-black hover:bg-zinc-100 transition-colors cursor-pointer">
                   <div className="mb-4 sm:mb-0">
                     <h3 className="font-bold text-xl uppercase tracking-tight text-black">Rain Screen Visuals</h3>
@@ -90,11 +82,9 @@ export default function AuraApp() {
             </div>
           )}
 
-          {/* --- TAB: GUEST LIST (CIRCLES) --- */}
           {activeTab === 'guestlist' && (
             <div className="animate-in fade-in duration-300">
               <h2 className="font-serif text-4xl font-bold mb-12">Distribution Circles</h2>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-8 border-2 border-black bg-black text-white flex flex-col h-full">
                   <h3 className="font-serif text-3xl font-bold mb-2">The Boardroom</h3>
@@ -105,7 +95,6 @@ export default function AuraApp() {
                   </ul>
                   <button className="mt-8 w-full py-3 border border-white hover:bg-white hover:text-black transition-colors font-bold uppercase text-sm">Edit Access</button>
                 </div>
-
                 <div className="p-8 border-2 border-black bg-zinc-200 text-black flex flex-col h-full">
                   <h3 className="font-serif text-3xl font-bold mb-2">The Studio</h3>
                   <p className="font-mono text-xs text-zinc-500 mb-8 uppercase">Collaborators</p>
@@ -115,7 +104,6 @@ export default function AuraApp() {
                   </ul>
                   <button className="mt-8 w-full py-3 border border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">Edit Access</button>
                 </div>
-
                 <div className="p-8 border-2 border-black bg-white text-black flex flex-col h-full">
                   <h3 className="font-serif text-3xl font-bold mb-2">Front Row</h3>
                   <p className="font-mono text-xs text-zinc-500 mb-8 uppercase">Super Fans</p>
@@ -129,11 +117,9 @@ export default function AuraApp() {
             </div>
           )}
 
-          {/* --- TAB: VAULT --- */}
           {activeTab === 'vault' && (
             <div className="animate-in fade-in duration-300">
                <h2 className="font-serif text-4xl font-bold mb-12">The Vault</h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-8 border-2 border-black bg-white flex flex-col justify-between h-72">
                   <div>
@@ -145,7 +131,6 @@ export default function AuraApp() {
                     <ArrowRight size={16} />
                   </button>
                 </div>
-
                 <div className="p-8 border-2 border-black bg-[#f4f4f0] flex flex-col h-72">
                   <h3 className="font-bold text-xl uppercase mb-6">Top Investors</h3>
                   <div className="space-y-4 flex-1 overflow-y-auto font-mono text-sm">
@@ -188,12 +173,20 @@ export default function AuraApp() {
       </nav>
 
       <main className="max-w-2xl w-full mx-auto flex flex-col items-center text-center mt-12 mb-20 animate-in fade-in duration-1000">
-        <h1 className="font-serif text-6xl md:text-8xl font-bold uppercase tracking-tight mb-6">
+        <h1 className="font-serif text-6xl md:text-8xl font-bold uppercase tracking-tight mb-8">
           Invite Only
         </h1>
-        <p className="font-mono text-sm md:text-base text-zinc-400 uppercase tracking-widest mb-16 max-w-md leading-relaxed">
-          The ecosystem is currently locked. Beta access is strictly limited to 100 artists. 
-        </p>
+        
+        {/* NEW MYSTERIOUS TEASER BLOCK */}
+        <div className="font-mono text-xs md:text-sm text-zinc-400 uppercase tracking-widest mb-16 max-w-lg leading-loose space-y-6 flex flex-col items-center">
+          <p>The ecosystem is currently locked.</p>
+          <div className="border-l border-zinc-700 pl-6 text-left text-zinc-300 w-full max-w-sm space-y-2 py-2">
+            <p>[01] A closed-circuit infrastructure.</p>
+            <p>[02] Zero leaks. Zero algorithms.</p>
+            <p>[03] Direct-to-Vault drops.</p>
+          </div>
+          <p className="text-zinc-500">Beta access is strictly limited to 100 visionaries.</p>
+        </div>
 
         <form onSubmit={handleAccess} className="w-full max-w-sm flex flex-col gap-2">
           <input 
