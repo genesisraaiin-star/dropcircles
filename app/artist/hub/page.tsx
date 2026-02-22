@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, LogOut, Lock, Globe, Upload, Link as LinkIcon, Edit2, Music, Video, Users, Download, DollarSign } from 'lucide-react';
+import { Plus, Folder, LogOut, Lock, Globe, Upload, Link as LinkIcon, Edit2, Music, Video, Users, Download, DollarSign, Trash2, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
@@ -35,18 +35,16 @@ export default function VisionaryHub() {
     checkUserAndFetchCircles();
   }, []);
 
-  // --- THE BULLETPROOF FIX IS HERE ---
   const checkUserAndFetchCircles = async () => {
     setIsLoading(true);
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError) throw sessionError;
-      
-      if (!session) {
+      if (sessionError || !session || !session.user) {
         router.push('/artist');
         return;
       }
+      
       setUser(session.user);
 
       const { data: circleData, error: circleError } = await supabase
@@ -63,13 +61,10 @@ export default function VisionaryHub() {
       }
     } catch (err: any) {
       console.error("Hub Initialization Error:", err);
-      alert("WORKSPACE ERROR: " + err.message + "\nCheck your Supabase connection.");
     } finally {
-      // THIS WILL ALWAYS RUN, KILLING THE INFINITE LOAD
       setIsLoading(false); 
     }
   };
-  // -----------------------------------
 
   const handleSelectCircle = async (circle: any) => {
     setActiveCircle(circle);
@@ -101,7 +96,7 @@ export default function VisionaryHub() {
 
   const createCircle = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCircleTitle || circles.length >= 3) return;
+    if (!newCircleTitle || circles.length >= 3 || !user) return;
 
     const capacity = parseInt(newCircleCapacity);
     if (isNaN(capacity) || capacity < 1) {
@@ -141,6 +136,51 @@ export default function VisionaryHub() {
     if (!error) {
       setActiveCircle({ ...activeCircle, title: newName });
       setCircles(circles.map(c => c.id === activeCircle.id ? { ...c, title: newName } : c));
+    }
+  };
+
+  const editCapacity = async () => {
+    const newCapStr = window.prompt("ENTER NEW MAX CAPACITY (Spots):", activeCircle.max_capacity?.toString() || "100");
+    if (!newCapStr) return;
+    
+    const newCap = parseInt(newCapStr);
+    if (isNaN(newCap) || newCap < 1) {
+      alert("CAPACITY MUST BE A NUMBER GREATER THAN 0.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('circles')
+      .update({ max_capacity: newCap })
+      .eq('id', activeCircle.id);
+
+    if (!error) {
+      setActiveCircle({ ...activeCircle, max_capacity: newCap });
+      setCircles(circles.map(c => c.id === activeCircle.id ? { ...c, max_capacity: newCap } : c));
+    } else {
+      alert("FAILED TO UPDATE CAPACITY.");
+    }
+  };
+
+  const deleteCircle = async () => {
+    const confirmDelete = window.confirm(`WARNING: ARE YOU SURE YOU WANT TO PERMANENTLY DELETE "${activeCircle.title}"?\n\nThis will destroy the vault, clear the guestlist, and free up 1 slot.`);
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from('circles')
+      .delete()
+      .eq('id', activeCircle.id);
+
+    if (!error) {
+      const updatedCircles = circles.filter(c => c.id !== activeCircle.id);
+      setCircles(updatedCircles);
+      if (updatedCircles.length > 0) {
+        handleSelectCircle(updatedCircles[0]);
+      } else {
+        setActiveCircle(null);
+      }
+    } else {
+      alert("FAILED TO DELETE CIRCLE. CHECK PERMISSIONS.");
     }
   };
 
@@ -272,12 +312,12 @@ export default function VisionaryHub() {
 
             {circles.length < 3 && (
               <form onSubmit={createCircle} className="border-2 border-dashed border-zinc-400 bg-transparent p-4 flex flex-col gap-4 focus-within:border-black transition-colors mt-6 relative">
-                <div className="flex gap-2 relative">
+                <div className="flex gap-4 relative">
                   <input 
                     type="text" 
                     placeholder="CIRCLE NAME" 
                     required
-                    className="flex-1 bg-transparent border-b-2 border-zinc-300 py-2 font-mono text-xs uppercase tracking-widest focus:outline-none focus:border-black transition-colors min-w-0"
+                    className="w-full bg-transparent border-b-2 border-zinc-300 py-2 font-mono text-xs uppercase tracking-widest focus:outline-none focus:border-black transition-colors"
                     value={newCircleTitle}
                     onChange={(e) => setNewCircleTitle(e.target.value)}
                   />
@@ -287,7 +327,7 @@ export default function VisionaryHub() {
                     required
                     min="1"
                     title="Max Capacity"
-                    className="w-16 flex-shrink-0 bg-transparent border-b-2 border-zinc-300 py-2 font-mono text-xs text-center uppercase tracking-widest focus:outline-none focus:border-black transition-colors"
+                    className="w-20 flex-shrink-0 bg-transparent border-b-2 border-zinc-300 py-2 font-mono text-xs text-center uppercase tracking-widest focus:outline-none focus:border-black transition-colors"
                     value={newCircleCapacity}
                     onChange={(e) => setNewCircleCapacity(e.target.value)}
                   />
@@ -326,9 +366,20 @@ export default function VisionaryHub() {
                   <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500 mb-2">ACTIVE DIRECTORY</p>
                   <div className="flex items-center gap-4">
                     <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">{activeCircle.title}</h1>
-                    <button onClick={renameCircle} className="text-zinc-300 hover:text-black transition-colors p-2">
-                      <Edit2 size={18} />
-                    </button>
+                    
+                    {/* HERE ARE THE BUTTONS */}
+                    <div className="flex items-center gap-1 mt-1">
+                      <button onClick={renameCircle} className="text-zinc-300 hover:text-black transition-colors p-2" title="Rename Circle">
+                        <Edit2 size={18} />
+                      </button>
+                      <button onClick={editCapacity} className="text-zinc-300 hover:text-black transition-colors p-2" title="Edit Scarcity/Capacity">
+                        <Settings size={18} />
+                      </button>
+                      <button onClick={deleteCircle} className="text-zinc-300 hover:text-red-600 transition-colors p-2" title="Delete Circle">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+
                   </div>
                 </div>
 
