@@ -219,7 +219,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
         .single();
       if (!error && data) {
         setCircle(data);
-        // Fetch artist profile
         const { data: profileData } = await supabase
           .from('artist_profiles')
           .select('name, bio, avatar_url')
@@ -241,7 +240,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     const cleanEmail = email.toLowerCase().trim();
 
     try {
-      // Check if this email already claimed a spot — if so, session is expired, deny re-entry
       const { data: existing } = await supabase
         .from('fan_roster')
         .select('id')
@@ -271,7 +269,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
         .update({ claimed_spots: circle.claimed_spots + 1 })
         .eq('id', circle.id);
 
-      // Fire EmailJS notification to artist (non-blocking)
       const spotsLeft = circle.max_capacity - (circle.claimed_spots + 1);
       notifyArtist(cleanEmail, circle.title, Math.max(0, spotsLeft));
 
@@ -285,25 +282,19 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
   };
 
   // ─── Lockout logic ───────────────────────────────────────────────────────────
-  // Timer is a PAUSE PENALTY clock — only runs while paused.
-  // If they pause for 30s without resuming, vault seals permanently.
-  // Playing freely / finishing tracks is allowed with no penalty.
-
   const triggerLockout = () => {
-    if (isPreview) return; // never lock out the artist in preview mode
+    if (isPreview) return;
     if (listenTimerRef.current) clearInterval(listenTimerRef.current);
     listenTimerRef.current = null;
     setIsLockedOut(true);
   };
 
-  // Track completed — no lockout, let them finish
   const onTrackCompleted = () => {
-    pauseListenTimer(); // clear any pause timer if somehow running
+    pauseListenTimer();
   };
 
-  // Called on pause — starts the 30s penalty countdown
   const startListenTimer = () => {
-    if (listenTimerRef.current) return; // already counting
+    if (listenTimerRef.current) return;
     listenSecondsRef.current = 0;
     listenTimerRef.current = setInterval(() => {
       listenSecondsRef.current += 1;
@@ -312,7 +303,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     }, 1000);
   };
 
-  // Called on play/resume — cancels the pause penalty
   const pauseListenTimer = () => {
     if (listenTimerRef.current) {
       clearInterval(listenTimerRef.current);
@@ -321,7 +311,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     listenSecondsRef.current = 0;
     setTotalListenTime(0);
   };
-  // ─────────────────────────────────────────────────────────────────────────────
 
   const fetchArtifacts = async () => {
     const { data } = await supabase
@@ -331,18 +320,17 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       .order('created_at', { ascending: true });
 
     if (data) {
-      // 15-minute signed URLs — tighter window, harder to share
       const withUrls = await Promise.all(data.map(async (art) => {
         const { data: urlData } = await supabase.storage
           .from('vault')
-          .createSignedUrl(art.file_path, 900); // 900s = 15 minutes
+          .createSignedUrl(art.file_path, 900);
         return { ...art, stream_url: urlData?.signedUrl };
       }));
       setArtifacts(withUrls);
     }
   };
 
-  // ── Locked out (transmission ended) ──────────────────────────────────────
+  // ── Locked out ────────────────────────────────────────────────────────────
   if (isLockedOut) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-700">
@@ -370,7 +358,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     );
   }
 
-  // ── Circle offline / not found — capture next drop interest ─────────────────
+  // ── Circle offline / not found ─────────────────────────────────────────────
   if (!circle || !circle.is_live) {
     return (
       <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
@@ -390,7 +378,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
             </p>
           </div>
 
-          {/* Notify capture — turn dead end into a lead */}
           <div className="border border-zinc-800 p-8 space-y-6">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-400 mb-1">
@@ -435,7 +422,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
 
   // ── Claim spot gate ────────────────────────────────────────────────────────
   if (!isUnlocked) {
-    const isFull        = circle.claimed_spots >= circle.max_capacity;
+    const isFull         = circle.claimed_spots >= circle.max_capacity;
     const spotsRemaining = Math.max(0, circle.max_capacity - circle.claimed_spots);
 
     return (
@@ -502,8 +489,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
               </p>
             </div>
           )}
-
-
         </div>
       </div>
     );
@@ -560,6 +545,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           </div>
         </div>
 
+        {/* Artifacts */}
         <div className="space-y-6">
           {artifacts.length === 0 ? (
             <p className="text-center font-mono text-xs uppercase tracking-widest text-zinc-500">
@@ -591,7 +577,6 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
                   </div>
                 </div>
 
-                {/* Media player — protected */}
                 <div className="w-full md:w-auto flex-shrink-0 relative" onContextMenu={(e) => e.preventDefault()}>
                   {artifact.file_type?.includes('video') ? (
                     <div className="relative w-full md:w-72">
@@ -624,8 +609,28 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           )}
         </div>
 
+        {/* ── Fan Feedback CTA ── */}
         {!isPreview && (
-          <div className="mt-24 pt-8 border-t border-zinc-200 text-center">
+          <div className="mt-16 border-2 border-black bg-white p-8 md:p-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center">
+            <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-400 mb-3">You just heard it first</p>
+            <h2 className="font-serif text-3xl font-bold tracking-tight mb-2">Drop Your Feedback</h2>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-zinc-500 mb-6">
+              Rate it. React to it. Tell the artist what you think.
+            </p>
+            <a
+              href={`/feedback/${circle.id}?title=${encodeURIComponent(circle.title)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 bg-black text-white px-8 py-4 font-bold font-mono text-[10px] uppercase tracking-[0.2em] hover:bg-[#ff3300] transition-colors"
+            >
+              Leave Feedback <ArrowRight size={14} />
+            </a>
+          </div>
+        )}
+
+        {/* Watermark footer */}
+        {!isPreview && (
+          <div className="mt-10 pt-8 border-t border-zinc-200 text-center">
             <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
               Session watermarked to {email.toLowerCase()}
             </p>
