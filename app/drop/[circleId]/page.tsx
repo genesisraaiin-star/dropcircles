@@ -140,7 +140,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [email, setEmail]         = useState('');
-  const [joinStatus, setJoinStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [joinStatus, setJoinStatus] = useState<'idle' | 'loading' | 'error' | 'expired'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => { fetchDropData(); }, [params.circleId]);
@@ -173,23 +173,37 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     setJoinStatus('loading');
     setErrorMessage('');
 
+    const cleanEmail = email.toLowerCase().trim();
+
     try {
+      // Check if this email already claimed a spot — if so, session is expired, deny re-entry
+      const { data: existing } = await supabase
+        .from('fan_roster')
+        .select('id')
+        .eq('circle_id', circle.id)
+        .eq('email', cleanEmail)
+        .single();
+
+      if (existing) {
+        setJoinStatus('expired');
+        setErrorMessage('SESSION EXPIRED. THIS VAULT DOES NOT REOPEN.');
+        return;
+      }
+
       const { error: insertError } = await supabase
         .from('fan_roster')
-        .insert([{ circle_id: circle.id, email: email.toLowerCase().trim() }]);
+        .insert([{ circle_id: circle.id, email: cleanEmail }]);
 
-      if (insertError && insertError.code !== '23505') throw insertError;
+      if (insertError) throw insertError;
 
-      if (!insertError) {
-        await supabase
-          .from('circles')
-          .update({ claimed_spots: circle.claimed_spots + 1 })
-          .eq('id', circle.id);
-      }
+      await supabase
+        .from('circles')
+        .update({ claimed_spots: circle.claimed_spots + 1 })
+        .eq('id', circle.id);
 
       // Fire EmailJS notification to artist (non-blocking)
       const spotsLeft = circle.max_capacity - (circle.claimed_spots + 1);
-      notifyArtist(email.toLowerCase().trim(), circle.title, Math.max(0, spotsLeft));
+      notifyArtist(cleanEmail, circle.title, Math.max(0, spotsLeft));
 
       setIsUnlocked(true);
       fetchArtifacts();
@@ -289,8 +303,10 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
                 {joinStatus === 'loading' ? 'VERIFYING...' : 'CLAIM SPOT & UNLOCK VAULT'}
                 {joinStatus === 'idle' && <ArrowRight size={16} />}
               </button>
-              {joinStatus === 'error' && (
-                <p className="font-mono text-[10px] text-red-600 uppercase tracking-widest mt-2">{errorMessage}</p>
+              {(joinStatus === 'error' || joinStatus === 'expired') && (
+                <p className={`font-mono text-[10px] uppercase tracking-widest mt-2 ${joinStatus === 'expired' ? 'text-zinc-500' : 'text-red-600'}`}>
+                  {errorMessage}
+                </p>
               )}
             </form>
           ) : (
