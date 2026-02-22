@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'AURA | Premium Musician Ecosystem',
-  description: 'Secure demo sharing and D2C payout platform.',
+  title: 'DropCircles | Direct-to-Vault Music Drops',
+  description: 'Closed-circuit infrastructure for artists. Zero leaks. Zero algorithms. Direct-to-vault drops.',
 }
 
 export default function RootLayout({
