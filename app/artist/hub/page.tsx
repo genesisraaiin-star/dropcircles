@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Folder, LogOut, Lock, Globe, Upload, Link as LinkIcon, Edit2, Music, Video, Users, Download, DollarSign, Trash2, Settings, User, Camera, Check } from 'lucide-react';
+import { Plus, Folder, LogOut, Lock, Globe, Upload, Link as LinkIcon, Edit2, Music, Video, Users, Download, DollarSign, Trash2, Settings, User, Camera, Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
@@ -196,6 +196,18 @@ export default function VisionaryHub() {
   const copyInviteLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}/drop/${activeCircle.id}`);
     alert("INVITE LINK COPIED.");
+  };
+
+  const removeFromRoster = async (fanId: string, fanEmail: string) => {
+    if (!window.confirm(`REMOVE ${fanEmail.toUpperCase()} FROM THE GUESTLIST?
+
+They will be able to re-enter the vault with this email.`)) return;
+    const { error } = await supabase.from('fan_roster').delete().eq('id', fanId);
+    if (!error) {
+      setFans(fans.filter(f => f.id !== fanId));
+    } else {
+      alert("FAILED TO REMOVE FAN.");
+    }
   };
 
   const exportToCSV = () => {
@@ -461,11 +473,18 @@ export default function VisionaryHub() {
                   ) : (
                     <div className="border-2 border-black bg-white max-h-[400px] overflow-y-auto">
                       {fans.map((fan) => (
-                        <div key={fan.id} className="flex items-center justify-between p-4 border-b-2 border-zinc-100 last:border-b-0 hover:bg-zinc-50 transition-colors">
+                        <div key={fan.id} className="flex items-center justify-between p-4 border-b-2 border-zinc-100 last:border-b-0 hover:bg-zinc-50 transition-colors group">
                           <span className="font-mono text-xs uppercase tracking-widest font-bold">{fan.email}</span>
                           <div className="flex items-center gap-4">
                             {fan.device && <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-300">{fan.device}</span>}
                             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-400">{new Date(fan.created_at).toLocaleDateString()}</span>
+                            <button
+                              onClick={() => removeFromRoster(fan.id, fan.email)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-300 hover:text-red-600 p-1"
+                              title="Remove from roster"
+                            >
+                              <X size={14} />
+                            </button>
                           </div>
                         </div>
                       ))}
