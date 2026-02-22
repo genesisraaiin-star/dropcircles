@@ -89,7 +89,7 @@ export default function ArtistVault() {
       <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black bg-white">
         <Link href="/" className="flex items-center gap-3 hover:opacity-50 transition-opacity">
           <LinkedCirclesLogo className="w-10 h-6" stroke="black" />
-          <span className="text-2xl font-serif tracking-tighter mt-1">AURA</span>
+          <span className="text-2xl font-serif tracking-tighter mt-1">DropCircles</span>
         </Link>
         <div className="flex gap-6 items-center">
           <Link href="/" className="text-[10px] font-mono uppercase tracking-[0.2em] text-black hover:text-[#ff3300] transition-colors hidden md:block font-bold">
