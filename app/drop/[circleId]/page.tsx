@@ -45,12 +45,12 @@ const LinkedCirclesLogo = ({ className = "w-16 h-10", stroke = "currentColor" })
 // ─── Watermark overlay ────────────────────────────────────────────────────────
 const Watermark = ({ email }: { email: string }) => (
   <div
-    className="absolute inset-0 pointer-events-none select-none z-10 flex items-end justify-end p-3"
+    className="absolute top-0 right-0 pointer-events-none select-none z-10 p-2"
     style={{ userSelect: 'none' }}
   >
     <span
-      className="font-mono text-[9px] uppercase tracking-widest opacity-25 text-black bg-white/60 px-2 py-1"
-      style={{ userSelect: 'none', letterSpacing: '0.15em' }}
+      className="font-mono text-[8px] uppercase tracking-widest opacity-20 text-black"
+      style={{ userSelect: 'none', letterSpacing: '0.12em' }}
     >
       {email}
     </span>
@@ -107,7 +107,7 @@ const CustomAudioPlayer = ({ src, email, onPlay, onPause, onEnded }: {
 
   return (
     <div
-      className="relative w-full md:w-80 flex flex-col gap-2 bg-zinc-100 p-4 border-2 border-black select-none"
+      className="relative w-full md:w-72 flex flex-col gap-2 bg-zinc-50 p-3 border border-black select-none"
       onContextMenu={(e) => e.preventDefault()}
     >
       <Watermark email={email} />
@@ -121,11 +121,11 @@ const CustomAudioPlayer = ({ src, email, onPlay, onPause, onEnded }: {
       <div className="flex items-center gap-4 relative z-20">
         <button
           onClick={togglePlay}
-          className="w-12 h-12 bg-black text-white flex items-center justify-center hover:bg-[#ff3300] transition-colors flex-shrink-0"
+          className="w-10 h-10 bg-black text-white flex items-center justify-center hover:bg-[#ff3300] transition-colors flex-shrink-0"
         >
           {isPlaying
-            ? <Pause size={20} fill="currentColor" />
-            : <Play size={20} fill="currentColor" className="ml-1" />}
+            ? <Pause size={16} fill="currentColor" />
+            : <Play size={16} fill="currentColor" className="ml-1" />}
         </button>
         <div className="flex-1 flex flex-col gap-2">
           <input
@@ -149,6 +149,7 @@ const CustomAudioPlayer = ({ src, email, onPlay, onPause, onEnded }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FanReceiver({ params }: { params: { circleId: string } }) {
   const [circle, setCircle]       = useState<any>(null);
+  const [profile, setProfile]     = useState<any>(null);
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -203,7 +204,16 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
         .select('*')
         .eq('id', params.circleId)
         .single();
-      if (!error && data) setCircle(data);
+      if (!error && data) {
+        setCircle(data);
+        // Fetch artist profile
+        const { data: profileData } = await supabase
+          .from('artist_profiles')
+          .select('name, bio, avatar_url')
+          .eq('artist_id', data.artist_id)
+          .single();
+        if (profileData) setProfile(profileData);
+      }
     } catch { /* noop */ } finally {
       setIsLoading(false);
     }
@@ -423,6 +433,16 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
 
         <div className="w-full max-w-lg bg-white border-4 border-black p-8 md:p-12 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] text-center relative overflow-hidden">
           <div className="mb-8">
+            {profile && (
+              <div className="flex flex-col items-center gap-3 mb-6">
+                {profile.avatar_url
+                  ? <img src={profile.avatar_url} alt={profile.name} className="w-16 h-16 rounded-full border-4 border-black object-cover" />
+                  : <div className="w-16 h-16 rounded-full border-4 border-black bg-zinc-100 flex items-center justify-center"><span className="font-serif text-xl font-bold text-zinc-400">{profile.name?.[0]?.toUpperCase()}</span></div>
+                }
+                {profile.name && <p className="font-bold text-sm uppercase tracking-tight">{profile.name}</p>}
+                {profile.bio && <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-500">{profile.bio}</p>}
+              </div>
+            )}
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-4">EXCLUSIVE ARTIFACT DROP</p>
             <h1 className="font-serif text-5xl font-bold tracking-tighter mb-2">{circle.title}</h1>
 
@@ -492,15 +512,28 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       </nav>
 
       <main className="max-w-4xl mx-auto pt-24 px-6">
-        <div className="mb-20 text-center border-b-2 border-black pb-16">
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-6">
-            VAULT UNLOCKED FOR: {email.toUpperCase()}
-          </p>
-          <h1 className="font-serif text-6xl md:text-8xl font-bold tracking-tighter mb-6">{circle.title}</h1>
+        <div className="mb-16 border-b-2 border-black pb-12">
+          {/* Artist profile */}
+          {profile && (
+            <div className="flex flex-col items-center gap-4 mb-10">
+              {profile.avatar_url
+                ? <img src={profile.avatar_url} alt={profile.name} className="w-20 h-20 rounded-full border-4 border-black object-cover" />
+                : <div className="w-20 h-20 rounded-full border-4 border-black bg-zinc-100 flex items-center justify-center"><span className="font-serif text-2xl font-bold text-zinc-400">{profile.name?.[0]?.toUpperCase()}</span></div>
+              }
+              {profile.name && <p className="font-bold text-xl uppercase tracking-tight">{profile.name}</p>}
+              {profile.bio && <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">{profile.bio}</p>}
+            </div>
+          )}
 
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff3300] font-bold">
-            DO NOT REFRESH — LINKS EXPIRE IN 15 MINUTES.
-          </p>
+          <div className="text-center">
+            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-400 mb-4">
+              VAULT UNLOCKED FOR: {email.toUpperCase()}
+            </p>
+            <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tighter mb-6">{circle.title}</h1>
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff3300] font-bold">
+              DO NOT REFRESH — LINKS EXPIRE IN 15 MINUTES.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -512,17 +545,24 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
             artifacts.map((artifact) => (
               <div
                 key={artifact.id}
-                className="border-4 border-black bg-white p-6 md:p-8 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group"
+                className="border-2 border-black bg-white p-5 md:p-6 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
                 onContextMenu={(e) => e.preventDefault()}
               >
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-black text-white flex items-center justify-center flex-shrink-0 group-hover:bg-[#ff3300] transition-colors">
-                    {artifact.file_type?.includes('video') ? <Video size={24} /> : <Music size={24} />}
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-black text-white flex items-center justify-center flex-shrink-0 group-hover:bg-[#ff3300] transition-colors">
+                    {artifact.file_type?.includes('video') ? <Video size={18} /> : <Music size={18} />}
                   </div>
                   <div>
-                    <h3 className="font-bold text-2xl uppercase tracking-tight">{artifact.title}</h3>
+                    <h3 className="font-bold text-lg uppercase tracking-tight">{artifact.title}</h3>
                     <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-400 mt-2">
-                      {artifact.file_type?.includes('video') ? 'VIDEO' : 'AUDIO'} · {artifact.file_type?.split('/')[1]?.toUpperCase() || 'FILE'}
+                      {artifact.file_type?.includes('video') ? 'VIDEO' : 'AUDIO'} · {
+                        artifact.file_type?.includes('wav') || artifact.file_type?.includes('x-wav') ? 'WAV' :
+                        artifact.file_type?.includes('mpeg') || artifact.file_type?.includes('mp3') ? 'MP3' :
+                        artifact.file_type?.includes('mp4') ? 'MP4' :
+                        artifact.file_type?.includes('aiff') ? 'AIFF' :
+                        artifact.file_type?.includes('flac') ? 'FLAC' :
+                        artifact.file_type?.split('/')[1]?.toUpperCase() || 'FILE'
+                      }
                     </p>
                   </div>
                 </div>
