@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Lock, Play, Pause, Music, Video, Globe, ArrowRight, ShieldAlert, Shield } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -148,6 +149,9 @@ const CustomAudioPlayer = ({ src, email, onPlay, onPause, onEnded }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FanReceiver({ params }: { params: { circleId: string } }) {
+  const searchParams = useSearchParams();
+  const isPreview = searchParams.get('preview') === 'true';
+
   const [circle, setCircle]       = useState<any>(null);
   const [profile, setProfile]     = useState<any>(null);
   const [artifacts, setArtifacts] = useState<any[]>([]);
@@ -165,6 +169,15 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
   const listenSecondsRef = useRef(0);
 
   useEffect(() => { fetchDropData(); }, [params.circleId]);
+
+  // Auto-unlock for artist preview — skip gate, no spot consumed
+  useEffect(() => {
+    if (isPreview && circle) {
+      setEmail('preview@artist');
+      setIsUnlocked(true);
+      fetchArtifacts();
+    }
+  }, [isPreview, circle]);
 
   // Block right-click globally on this page once unlocked
   useEffect(() => {
@@ -277,6 +290,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
   // Playing freely / finishing tracks is allowed with no penalty.
 
   const triggerLockout = () => {
+    if (isPreview) return; // never lock out the artist in preview mode
     if (listenTimerRef.current) clearInterval(listenTimerRef.current);
     listenTimerRef.current = null;
     setIsLockedOut(true);
@@ -501,6 +515,14 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       className="min-h-screen bg-[#f4f4f0] text-black font-sans selection:bg-black selection:text-[#f4f4f0] pb-32 animate-in fade-in duration-1000"
       onContextMenu={(e) => e.preventDefault()}
     >
+      {/* Preview mode banner */}
+      {isPreview && (
+        <div className="bg-[#ff3300] text-white px-6 py-2 flex items-center justify-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.3em] font-bold">
+            ARTIST PREVIEW MODE — This is what your fans see. No spot consumed.
+          </span>
+        </div>
+      )}
       <nav className="flex justify-between items-center px-6 py-4 border-b-2 border-black bg-white">
         <div className="flex items-center gap-3">
           <LinkedCirclesLogo className="w-10 h-6" stroke="black" />
@@ -526,9 +548,11 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           )}
 
           <div className="text-center">
-            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-400 mb-4">
-              VAULT UNLOCKED FOR: {email.toUpperCase()}
-            </p>
+            {!isPreview && (
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-400 mb-4">
+                VAULT UNLOCKED FOR: {email.toUpperCase()}
+              </p>
+            )}
             <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tighter mb-6">{circle.title}</h1>
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff3300] font-bold">
               DO NOT REFRESH — LINKS EXPIRE IN 15 MINUTES.
@@ -600,11 +624,13 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           )}
         </div>
 
-        <div className="mt-24 pt-8 border-t border-zinc-200 text-center">
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
-            Session watermarked to {email.toLowerCase()}
-          </p>
-        </div>
+        {!isPreview && (
+          <div className="mt-24 pt-8 border-t border-zinc-200 text-center">
+            <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
+              Session watermarked to {email.toLowerCase()}
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );
