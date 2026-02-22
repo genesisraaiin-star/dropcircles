@@ -156,6 +156,8 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
   const [email, setEmail]         = useState('');
   const [joinStatus, setJoinStatus] = useState<'idle' | 'loading' | 'error' | 'expired'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [notifyStatus, setNotifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [totalListenTime, setTotalListenTime] = useState(0);
   const [completedTracks, setCompletedTracks] = useState(0);
   const listenTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -170,6 +172,28 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     document.addEventListener('contextmenu', block);
     return () => document.removeEventListener('contextmenu', block);
   }, [isUnlocked]);
+
+  const submitNotify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyEmail || !circle) return;
+    setNotifyStatus('loading');
+    const cleanEmail = notifyEmail.toLowerCase().trim();
+    try {
+      const { error } = await supabase
+        .from('waitlist')
+        .insert([{
+          email:     cleanEmail,
+          source:    `next_drop_${params.circleId}`,
+          circle_id: circle.id,
+          created_at: new Date().toISOString(),
+        }]);
+      if (error && error.code !== '23505') throw error;
+      setNotifyStatus('success');
+      setNotifyEmail('');
+    } catch {
+      setNotifyStatus('error');
+    }
+  };
 
   const fetchDropData = async () => {
     setIsLoading(true);
@@ -210,7 +234,12 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
 
       const { error: insertError } = await supabase
         .from('fan_roster')
-        .insert([{ circle_id: circle.id, email: cleanEmail }]);
+        .insert([{
+          circle_id: circle.id,
+          email:     cleanEmail,
+          source:    'drop_link',
+          device:    /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+        }]);
 
       if (insertError) throw insertError;
 
@@ -317,17 +346,65 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     );
   }
 
-  // ── Circle offline / not found ─────────────────────────────────────────────
+  // ── Circle offline / not found — capture next drop interest ─────────────────
   if (!circle || !circle.is_live) {
     return (
       <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-1000">
-        <LinkedCirclesLogo className="w-16 h-10 text-white opacity-50 mb-12" />
-        <Lock size={48} className="mb-8 text-zinc-600" />
-        <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tighter mb-6">The Vault<br />is Sealed.</h1>
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-zinc-500 max-w-md leading-relaxed">
-          THIS DROPCIRCLE IS CURRENTLY OFFLINE. THE ARTIST HAS NOT YET INITIATED THE TRANSMISSION.
-        </p>
-        <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-700 mt-8">DropCircles</p>
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          <LinkedCirclesLogo className="w-12 h-8 text-white opacity-30" />
+          <span className="font-mono text-[8px] uppercase tracking-[0.3em] text-zinc-700">DropCircles</span>
+        </div>
+
+        <div className="w-full max-w-md space-y-12">
+          <div className="space-y-4">
+            <Lock size={32} className="mx-auto text-zinc-700" />
+            <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tighter">
+              The Vault<br />is Sealed.
+            </h1>
+            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-600 leading-relaxed">
+              This drop has not yet been initiated.
+            </p>
+          </div>
+
+          {/* Notify capture — turn dead end into a lead */}
+          <div className="border border-zinc-800 p-8 space-y-6">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-400 mb-1">
+                Be first for the next drop.
+              </p>
+              <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-700">
+                Leave your email. We'll reach out when the vault opens.
+              </p>
+            </div>
+
+            {notifyStatus === 'success' ? (
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#4ade80] animate-pulse">
+                POSITION SECURED. YOU'LL BE FIRST TO KNOW.
+              </p>
+            ) : (
+              <form onSubmit={submitNotify} className="space-y-4">
+                <input
+                  type="email"
+                  placeholder="ENTER EMAIL"
+                  required
+                  value={notifyEmail}
+                  onChange={(e) => setNotifyEmail(e.target.value)}
+                  className="w-full bg-transparent border-b border-zinc-700 py-3 font-mono text-center text-xs uppercase tracking-[0.25em] focus:outline-none focus:border-white transition-colors placeholder:text-zinc-700 text-white"
+                />
+                <button
+                  type="submit"
+                  disabled={notifyStatus === 'loading'}
+                  className="w-full border border-zinc-700 hover:border-white text-zinc-400 hover:text-white py-4 font-mono text-[10px] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  {notifyStatus === 'loading' ? 'SUBMITTING...' : <>NOTIFY ME <ArrowRight size={12} /></>}
+                </button>
+                {notifyStatus === 'error' && (
+                  <p className="font-mono text-[9px] text-red-700 uppercase tracking-widest">FAILED. PLEASE RETRY.</p>
+                )}
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -392,11 +469,7 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
             </div>
           )}
 
-          {/* Download protection notice */}
-          <div className="mt-8 pt-6 border-t border-zinc-100 flex items-center justify-center gap-2 text-zinc-400">
-            <Shield size={12} />
-            <span className="font-mono text-[9px] uppercase tracking-widest">VAULT-PROTECTED CONTENT</span>
-          </div>
+
         </div>
       </div>
     );
@@ -425,15 +498,9 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           </p>
           <h1 className="font-serif text-6xl md:text-8xl font-bold tracking-tighter mb-6">{circle.title}</h1>
 
-          {/* Scarcity warning — intentional, links expire in 15 min */}
-          <div className="inline-flex flex-col items-center gap-2">
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff3300] font-bold">
-              THESE LINKS EXPIRE IN 15 MINUTES. DO NOT REFRESH.
-            </p>
-            <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-400 flex items-center gap-1">
-              <Shield size={10} /> WATERMARKED · VAULT-PROTECTED · NON-TRANSFERABLE
-            </p>
-          </div>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#ff3300] font-bold">
+            DO NOT REFRESH — LINKS EXPIRE IN 15 MINUTES.
+          </p>
         </div>
 
         <div className="space-y-6">
@@ -454,11 +521,8 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
                   </div>
                   <div>
                     <h3 className="font-bold text-2xl uppercase tracking-tight">{artifact.title}</h3>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-2">
-                      {artifact.file_type?.includes('video') ? 'VISUAL FEED // ENCRYPTED' : 'LOSSLESS AUDIO // ENCRYPTED'}
-                    </p>
-                    <p className="font-mono text-[9px] uppercase tracking-widest text-zinc-300 mt-1 flex items-center gap-1">
-                      <Shield size={9} /> {email.toLowerCase()}
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-400 mt-2">
+                      {artifact.file_type?.includes('video') ? 'VIDEO' : 'AUDIO'} · {artifact.file_type?.split('/')[1]?.toUpperCase() || 'FILE'}
                     </p>
                   </div>
                 </div>
@@ -496,10 +560,9 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-24 pt-8 border-t-2 border-zinc-200 text-center">
-          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400 flex items-center justify-center gap-2">
-            <Shield size={10} /> This session is watermarked to {email.toLowerCase()} · Unauthorized distribution violates access terms
+        <div className="mt-24 pt-8 border-t border-zinc-200 text-center">
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
+            Session watermarked to {email.toLowerCase()}
           </p>
         </div>
       </main>
