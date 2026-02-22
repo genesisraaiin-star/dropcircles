@@ -58,7 +58,13 @@ const Watermark = ({ email }: { email: string }) => (
 );
 
 // ─── Custom Audio Player ──────────────────────────────────────────────────────
-const CustomAudioPlayer = ({ src, email }: { src: string; email: string }) => {
+const CustomAudioPlayer = ({ src, email, onPlay, onPause, onEnded }: {
+  src: string;
+  email: string;
+  onPlay?: () => void;
+  onPause?: () => void;
+  onEnded?: () => void;
+}) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -67,8 +73,15 @@ const CustomAudioPlayer = ({ src, email }: { src: string; email: string }) => {
 
   const togglePlay = () => {
     if (!audioRef.current) return;
-    if (isPlaying) { audioRef.current.pause(); } else { audioRef.current.play(); }
-    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      onPause?.();
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+      onPlay?.();
+    }
   };
 
   const handleTimeUpdate = () => {
@@ -103,7 +116,7 @@ const CustomAudioPlayer = ({ src, email }: { src: string; email: string }) => {
         src={src}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); onPause?.(); onEnded?.(); }}
       />
       <div className="flex items-center gap-4 relative z-20">
         <button
@@ -139,9 +152,14 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isLockedOut, setIsLockedOut] = useState(false);
   const [email, setEmail]         = useState('');
   const [joinStatus, setJoinStatus] = useState<'idle' | 'loading' | 'error' | 'expired'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [totalListenTime, setTotalListenTime] = useState(0);
+  const [completedTracks, setCompletedTracks] = useState(0);
+  const listenTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const listenSecondsRef = useRef(0);
 
   useEffect(() => { fetchDropData(); }, [params.circleId]);
 
@@ -214,6 +232,44 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
     }
   };
 
+  // ─── Lockout logic ───────────────────────────────────────────────────────────
+  // Timer is a PAUSE PENALTY clock — only runs while paused.
+  // If they pause for 30s without resuming, vault seals permanently.
+  // Playing freely / finishing tracks is allowed with no penalty.
+
+  const triggerLockout = () => {
+    if (listenTimerRef.current) clearInterval(listenTimerRef.current);
+    listenTimerRef.current = null;
+    setIsLockedOut(true);
+  };
+
+  // Track completed — no lockout, let them finish
+  const onTrackCompleted = () => {
+    pauseListenTimer(); // clear any pause timer if somehow running
+  };
+
+  // Called on pause — starts the 30s penalty countdown
+  const startListenTimer = () => {
+    if (listenTimerRef.current) return; // already counting
+    listenSecondsRef.current = 0;
+    listenTimerRef.current = setInterval(() => {
+      listenSecondsRef.current += 1;
+      setTotalListenTime(listenSecondsRef.current);
+      if (listenSecondsRef.current >= 30) triggerLockout();
+    }, 1000);
+  };
+
+  // Called on play/resume — cancels the pause penalty
+  const pauseListenTimer = () => {
+    if (listenTimerRef.current) {
+      clearInterval(listenTimerRef.current);
+      listenTimerRef.current = null;
+    }
+    listenSecondsRef.current = 0;
+    setTotalListenTime(0);
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const fetchArtifacts = async () => {
     const { data } = await supabase
       .from('artifacts')
@@ -232,6 +288,25 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
       setArtifacts(withUrls);
     }
   };
+
+  // ── Locked out (transmission ended) ──────────────────────────────────────
+  if (isLockedOut) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-700">
+        <LinkedCirclesLogo className="w-16 h-10 text-white opacity-20 mb-16" />
+        <div className="space-y-6 max-w-sm">
+          <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-600">TRANSMISSION ENDED</p>
+          <h1 className="font-serif text-6xl md:text-8xl font-bold tracking-tighter text-white">
+            The Vault<br/>is Dark.
+          </h1>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-600 leading-relaxed pt-4">
+            This session has been permanently sealed.<br/>No further access will be granted.
+          </p>
+        </div>
+        <p className="absolute bottom-8 font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-800">DropCircles</p>
+      </div>
+    );
+  }
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -398,13 +473,22 @@ export default function FanReceiver({ params }: { params: { circleId: string } }
                         controlsList="nodownload nofullscreen noremoteplayback"
                         disablePictureInPicture
                         onContextMenu={(e) => e.preventDefault()}
+                        onPlay={pauseListenTimer}
+                        onPause={startListenTimer}
+                        onEnded={onTrackCompleted}
                         className="w-full border-2 border-black bg-black"
                         style={{ userSelect: 'none' }}
                       />
                       <Watermark email={email} />
                     </div>
                   ) : (
-                    <CustomAudioPlayer src={artifact.stream_url} email={email} />
+                    <CustomAudioPlayer
+                      src={artifact.stream_url}
+                      email={email}
+                      onPlay={pauseListenTimer}
+                      onPause={startListenTimer}
+                      onEnded={onTrackCompleted}
+                    />
                   )}
                 </div>
               </div>
