@@ -62,10 +62,31 @@ export default function DropCirclesApp() {
         setStatus('denied');
         setServerError('NETWORK ERROR. PLEASE RETRY.');
       }
+
     } else {
+      // WAITLIST — actually save to Supabase, not just a fake success
       if (!email) return;
-      setStatus('success');
-      setEmail('');
+      setStatus('loading');
+      const cleanEmail = email.toLowerCase().trim();
+
+      try {
+        const { error } = await supabase
+          .from('waitlist')
+          .insert([{
+            email: cleanEmail,
+            source: 'landing_page',
+            created_at: new Date().toISOString(),
+          }]);
+
+        // Ignore duplicate error — already on the list is fine
+        if (error && error.code !== '23505') throw error;
+
+        setStatus('success');
+        setEmail('');
+      } catch {
+        setStatus('denied');
+        setServerError('SUBMISSION FAILED. PLEASE RETRY.');
+      }
     }
   };
 
@@ -142,7 +163,7 @@ export default function DropCirclesApp() {
               disabled={status === 'loading' || status === 'success'}
               className="w-full bg-black text-white border border-white py-5 font-bold text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              {status === 'loading' ? 'PROCESSING...' : status === 'success' ? 'REQUEST RECEIVED' : formMode === 'unlock' ? 'UNLOCK' : 'SUBMIT REQUEST'}
+              {status === 'loading' ? 'PROCESSING...' : status === 'success' ? 'POSITION SECURED' : formMode === 'unlock' ? 'UNLOCK' : 'REQUEST ACCESS'}
               {status === 'idle' && <ArrowRight size={16} />}
             </button>
 
